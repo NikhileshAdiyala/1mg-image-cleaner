@@ -3,6 +3,7 @@ import re
 import uuid
 import shutil
 import zipfile
+import base64
 import urllib.request
 from urllib.parse import urlparse
 from typing import List, Optional
@@ -15,11 +16,20 @@ from app.processor import fetch_1mg_image_urls, extract_product_slug, process_si
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-OUTPUTS_DIR = os.path.join(STATIC_DIR, "outputs")
+
+IS_SERVERLESS = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+
+if IS_SERVERLESS:
+    OUTPUTS_DIR = "/tmp/outputs"
+    os.environ["U2NET_HOME"] = "/tmp/.u2net"
+else:
+    OUTPUTS_DIR = os.path.join(STATIC_DIR, "outputs")
+
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
 app = FastAPI(title="1MG Product Image Studio")
 
+app.mount("/static/outputs", StaticFiles(directory=OUTPUTS_DIR), name="outputs")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 def sanitize_filename(name: str) -> str:
@@ -145,15 +155,19 @@ async def process_urls(req: ProcessRequest):
 
                 raw_filename = f"{clean_basename}.raw.{raw_ext}"
                 raw_url = None
+                raw_data_url = None
 
                 if include_raw:
                     raw_filepath = os.path.join(raw_dir, raw_filename)
                     with open(raw_filepath, "wb") as f:
                         f.write(raw_bytes)
                     raw_url = f"/static/outputs/{job_id}/{folder_name}/raw/{raw_filename}"
+                    raw_mime = "png" if raw_ext == "png" else "jpeg"
+                    raw_data_url = f"data:image/{raw_mime};base64,{base64.b64encode(raw_bytes).decode('utf-8')}"
 
                 proc_filename = None
                 processed_url = None
+                proc_data_url = None
 
                 if not is_raw_only:
                     processed_bytes, ext = process_single_image(raw_bytes, transparent=is_transparent)
@@ -162,13 +176,17 @@ async def process_urls(req: ProcessRequest):
                     with open(filepath, "wb") as f:
                         f.write(processed_bytes)
                     processed_url = f"/static/outputs/{job_id}/{folder_name}/{proc_filename}"
+                    proc_mime = "png" if ext == "png" else "jpeg"
+                    proc_data_url = f"data:image/{proc_mime};base64,{base64.b64encode(processed_bytes).decode('utf-8')}"
 
                 prod_images.append({
                     "filename": proc_filename or raw_filename,
                     "processed_filename": proc_filename,
                     "processed_url": processed_url,
+                    "processed_data_url": proc_data_url,
                     "raw_filename": raw_filename if include_raw else None,
-                    "raw_url": raw_url if include_raw else None
+                    "raw_url": raw_url if include_raw else None,
+                    "raw_data_url": raw_data_url
                 })
                 total_images_processed += 1
             except Exception as err:
@@ -304,11 +322,16 @@ async def upload_image(
     with open(raw_path, "wb") as f:
         f.write(contents)
 
+    proc_mime = "png" if ext == "png" else "jpeg"
+    raw_mime = "png" if raw_ext == "png" else "jpeg"
+
     return {
         "filename": unique_name,
         "url": f"/static/outputs/uploads/{unique_name}",
+        "data_url": f"data:image/{proc_mime};base64,{base64.b64encode(processed_bytes).decode('utf-8')}",
         "raw_filename": unique_raw_name,
-        "raw_url": f"/static/outputs/uploads/{unique_raw_name}"
+        "raw_url": f"/static/outputs/uploads/{unique_raw_name}",
+        "raw_data_url": f"data:image/{raw_mime};base64,{base64.b64encode(contents).decode('utf-8')}"
     }
 
 @app.get("/api/health")

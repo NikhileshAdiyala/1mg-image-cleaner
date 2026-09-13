@@ -11,8 +11,22 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-# Pre-initialize rembg session
-session = new_session("u2net")
+# Lazy rembg session
+_session = None
+
+def get_rembg_session():
+    global _session
+    if _session is None:
+        is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+        # u2netp is ~4.5MB (fast serverless cold start), u2net is ~176MB (local continuous server)
+        default_model = "u2netp" if is_serverless else "u2net"
+        model_name = os.environ.get("REMBG_MODEL", default_model)
+        
+        if is_serverless or not os.environ.get("U2NET_HOME"):
+            os.environ["U2NET_HOME"] = "/tmp/.u2net"
+            
+        _session = new_session(model_name)
+    return _session
 
 def extract_product_slug(url: str) -> str:
     path = urlparse(url).path.strip("/")
@@ -63,33 +77,43 @@ def process_single_image(image_bytes: bytes, transparent: bool = False) -> tuple
     Removes background and composites to pure white (or leaves transparent).
     Protects flat packaging box scans from accidental erosion.
     """
-    cutout_bytes = remove(image_bytes, session=session)
-    cutout_img = Image.open(BytesIO(cutout_bytes)).convert("RGBA")
-    raw_img = Image.open(BytesIO(image_bytes)).convert("RGBA")
+    try:
+        session = get_rembg_session()
+        cutout_bytes = remove(image_bytes, session=session)
+        cutout_img = Image.open(BytesIO(cutout_bytes)).convert("RGBA")
+        raw_img = Image.open(BytesIO(image_bytes)).convert("RGBA")
 
-    # Check if rembg accidentally hollowed out a solid white product box
-    img_white_arr = np.array(cutout_img.convert("L"))
-    img_raw_arr = np.array(raw_img.convert("L"))
+        # Check if rembg accidentally hollowed out a solid white product box
+        img_white_arr = np.array(cutout_img.convert("L"))
+        img_raw_arr = np.array(raw_img.convert("L"))
 
-    # If cutout erased >85% of pixels but raw image had significant content
-    # (indicating the product packaging surface itself was white)
-    white_cutout_ratio = np.mean(img_white_arr > 250)
-    white_raw_ratio = np.mean(img_raw_arr > 250)
+        white_cutout_ratio = np.mean(img_white_arr > 250)
+        white_raw_ratio = np.mean(img_raw_arr > 250)
 
-    is_flat_packaging = white_cutout_ratio > 0.85 and white_raw_ratio < 0.75
+        is_flat_packaging = white_cutout_ratio > 0.85 and white_raw_ratio < 0.75
 
-    out_io = BytesIO()
-    if transparent:
-        if is_flat_packaging:
-            raw_img.save(out_io, format="PNG")
+        out_io = BytesIO()
+        if transparent:
+            if is_flat_packaging:
+                raw_img.save(out_io, format="PNG")
+            else:
+                cutout_img.save(out_io, format="PNG")
+            return out_io.getvalue(), "png"
         else:
-            cutout_img.save(out_io, format="PNG")
-        return out_io.getvalue(), "png"
-    else:
-        if is_flat_packaging:
+            if is_flat_packaging:
+                raw_img.convert("RGB").save(out_io, format="JPEG", quality=95)
+            else:
+                white_canvas = Image.new("RGBA", cutout_img.size, (255, 255, 255, 255))
+                final_img = Image.alpha_composite(white_canvas, cutout_img).convert("RGB")
+                final_img.save(out_io, format="JPEG", quality=95)
+            return out_io.getvalue(), "jpg"
+    except Exception as e:
+        print(f"Background removal failed ({e}), falling back to raw image.")
+        raw_img = Image.open(BytesIO(image_bytes))
+        out_io = BytesIO()
+        if transparent:
+            raw_img.convert("RGBA").save(out_io, format="PNG")
+            return out_io.getvalue(), "png"
+        else:
             raw_img.convert("RGB").save(out_io, format="JPEG", quality=95)
-        else:
-            white_canvas = Image.new("RGBA", cutout_img.size, (255, 255, 255, 255))
-            final_img = Image.alpha_composite(white_canvas, cutout_img).convert("RGB")
-            final_img.save(out_io, format="JPEG", quality=95)
-        return out_io.getvalue(), "jpg"
+            return out_io.getvalue(), "jpg"
