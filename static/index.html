@@ -51,34 +51,70 @@
       <!-- Tab 1: 1MG URLs -->
       <div id="tabUrls" class="space-y-5">
         <div>
-          <label class="block text-sm font-medium text-slate-700 mb-2">
-            1MG Product URLs <span class="text-xs text-slate-400 font-normal">(One link per line)</span>
+          <label class="block text-sm font-medium text-slate-700 mb-1">
+            Product SKU / Custom Filename <span class="text-xs text-slate-400 font-normal">(Optional — applied to single URL or used as default)</span>
           </label>
-          <textarea id="urlInput" rows="4" placeholder="https://www.1mg.com/otc/sbl-cina-dilution-200-ch-otc346174&#10;https://www.1mg.com/otc/sbl-aloe-socotrina-dilution-30-ch-otc338387" class="w-full text-sm font-mono p-3.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"></textarea>
+          <input type="text" id="customNameInput" placeholder="e.g. SKU123, MY-PRODUCT-01" class="w-full text-sm p-3 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition" />
+          <p class="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+            <span class="font-medium text-emerald-700">Naming rule:</span>
+            <span>1st image: <code class="bg-slate-100 px-1 py-0.5 rounded font-mono font-semibold text-slate-700">{Name}.Main.jpg</code>, subsequent: <code class="bg-slate-100 px-1 py-0.5 rounded font-mono font-semibold text-slate-700">{Name}.PT01.jpg</code>, <code class="bg-slate-100 px-1 py-0.5 rounded font-mono font-semibold text-slate-700">{Name}.PT02.jpg</code>...</span>
+          </p>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="block text-sm font-medium text-slate-700">
+              1MG Product URLs <span class="text-xs text-slate-400 font-normal">(One link per line)</span>
+            </label>
+            <span class="text-xs text-slate-400 font-normal">Batch naming: <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-600">URL , SKU</code></span>
+          </div>
+          <textarea id="urlInput" rows="4" placeholder="https://www.1mg.com/otc/sbl-cina-dilution-200-ch-otc346174 , SKU-A1&#10;https://www.1mg.com/otc/sbl-aloe-socotrina-dilution-30-ch-otc338387 , SKU-B2" class="w-full text-sm font-mono p-3.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"></textarea>
         </div>
 
         <!-- Options -->
-        <div class="flex flex-wrap items-center justify-between gap-4 pt-2">
-          <div class="flex items-center gap-6">
-            <label class="inline-flex items-center gap-2 text-sm cursor-pointer">
-              <input type="radio" name="bg_mode" value="white" checked class="text-emerald-600 focus:ring-emerald-500">
-              <span class="font-medium text-slate-700">Solid White Background (#FFF)</span>
-            </label>
-            <label class="inline-flex items-center gap-2 text-sm cursor-pointer">
-              <input type="radio" name="bg_mode" value="transparent" class="text-emerald-600 focus:ring-emerald-500">
-              <span class="font-medium text-slate-700">Transparent PNG</span>
-            </label>
-          </div>
+        <div class="space-y-3 pt-2">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="space-y-2">
+              <div class="flex flex-wrap items-center gap-5">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Output Mode:</span>
+                <label class="inline-flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="bg_mode" value="white" checked class="text-emerald-600 focus:ring-emerald-500" onchange="onModeChange()">
+                  <span class="font-medium text-slate-700">Solid White (#FFF)</span>
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="bg_mode" value="transparent" class="text-emerald-600 focus:ring-emerald-500" onchange="onModeChange()">
+                  <span class="font-medium text-slate-700">Transparent PNG</span>
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="bg_mode" value="raw_only" class="text-emerald-600 focus:ring-emerald-500" onchange="onModeChange()">
+                  <span class="font-medium text-slate-700">Raw Originals Only <span class="text-xs text-emerald-600 font-normal">(Instant, no AI processing)</span></span>
+                </label>
+              </div>
+              <div id="includeRawRow" class="flex items-center gap-2 pl-0.5">
+                <label class="inline-flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                  <input type="checkbox" id="includeRawCheck" checked class="text-emerald-600 rounded focus:ring-emerald-500">
+                  <span>Include original <strong>Raw un-watermarked images</strong> for download alongside processed images</span>
+                </label>
+              </div>
+            </div>
 
-          <button id="processBtn" onclick="processUrls()" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow transition disabled:opacity-50">
-            <svg id="btnSpinner" class="hidden animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-            <span id="btnText">Process Images</span>
-          </button>
+            <button id="processBtn" onclick="processUrls()" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow transition disabled:opacity-50 shrink-0">
+              <svg id="btnSpinner" class="hidden animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+              <span id="btnText">Process Images</span>
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- Tab 2: Direct Upload -->
       <div id="tabUpload" class="hidden space-y-5">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">
+            Product SKU / Custom Filename <span class="text-xs text-slate-400 font-normal">(Optional — will be saved as {Name}.Main.jpg)</span>
+          </label>
+          <input type="text" id="uploadCustomName" placeholder="e.g. SKU123, MY-PRODUCT-01" class="w-full text-sm p-3 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition" />
+        </div>
+
         <div id="dropZone" class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-8 text-center transition cursor-pointer bg-slate-50/50">
           <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
           <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center mb-3">
@@ -110,15 +146,25 @@
 
     <!-- Results Section -->
     <div id="resultsSection" class="hidden space-y-6">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
           <h2 class="text-xl font-bold text-slate-900">Processed Results</h2>
           <p id="resultsSummary" class="text-xs text-slate-500 mt-0.5">Showing output images</p>
         </div>
-        <a id="downloadAllZipBtn" href="#" class="hidden inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          Download All as ZIP
-        </a>
+        <div class="flex flex-wrap items-center gap-2">
+          <a id="downloadCleanZipBtn" href="#" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download Clean (ZIP)
+          </a>
+          <a id="downloadRawZipBtn" href="#" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download Raw (ZIP)
+          </a>
+          <a id="downloadBundleZipBtn" href="#" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+            Download Complete Bundle (ZIP)
+          </a>
+        </div>
       </div>
 
       <div id="productsContainer" class="space-y-8"></div>
@@ -137,6 +183,16 @@
         document.getElementById('tabUpload').classList.remove('hidden');
         document.getElementById('tabUploadBtn').className = 'pb-3 px-4 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600 flex items-center gap-2';
         document.getElementById('tabUrlsBtn').className = 'pb-3 px-4 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent flex items-center gap-2';
+      }
+    }
+
+    function onModeChange() {
+      const mode = document.querySelector('input[name="bg_mode"]:checked').value;
+      const rawRow = document.getElementById('includeRawRow');
+      if (mode === 'raw_only') {
+        rawRow.classList.add('opacity-40', 'pointer-events-none');
+      } else {
+        rawRow.classList.remove('opacity-40', 'pointer-events-none');
       }
     }
 
@@ -171,6 +227,10 @@
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('transparent', document.getElementById('uploadTransparent').checked);
+      const customName = document.getElementById('uploadCustomName').value.trim();
+      if (customName) {
+        formData.append('custom_name', customName);
+      }
 
       showStatus("Processing uploaded image...");
       try {
@@ -191,17 +251,25 @@
         return;
       }
       const urls = text.split('\n').map(u => u.trim()).filter(Boolean);
+      const customName = document.getElementById('customNameInput').value.trim();
       const bgMode = document.querySelector('input[name="bg_mode"]:checked').value;
-      const transparent = bgMode === 'transparent';
+      const includeRaw = document.getElementById('includeRawCheck').checked;
 
       setButtonLoading(true);
-      showStatus(`Processing ${urls.length} product(s)... Extracting clean images & replacing backgrounds.`);
+      const modeDesc = bgMode === 'raw_only' ? 'Extracting watermark-free raw originals' : 'Extracting clean images & replacing backgrounds';
+      showStatus(`Processing ${urls.length} product(s)... ${modeDesc}.`);
 
       try {
         const resp = await fetch('/api/process-urls', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ urls, transparent })
+          body: JSON.stringify({
+            urls,
+            custom_name: customName,
+            mode: bgMode,
+            transparent: bgMode === 'transparent',
+            include_raw: includeRaw
+          })
         });
         const data = await resp.json();
         hideStatus();
@@ -238,49 +306,165 @@
       }
     }
 
+    function switchImagePreview(imgId, newSrc, btn) {
+      const img = document.getElementById(imgId);
+      if (img) img.src = newSrc;
+      const parent = btn.parentElement;
+      const buttons = parent.querySelectorAll('button');
+      buttons.forEach(b => {
+        b.className = "px-1.5 py-0.5 rounded text-slate-600 hover:text-slate-900 transition";
+      });
+      if (btn.classList.contains('preview-btn-raw')) {
+        btn.className = "px-1.5 py-0.5 rounded bg-amber-600 text-white transition preview-btn-raw";
+      } else {
+        btn.className = "px-1.5 py-0.5 rounded bg-emerald-600 text-white transition preview-btn-clean";
+      }
+    }
+
     function renderBatchResults(data) {
       const container = document.getElementById('productsContainer');
       container.innerHTML = '';
       document.getElementById('resultsSection').classList.remove('hidden');
 
-      if (data.zip_url) {
-        const zipBtn = document.getElementById('downloadAllZipBtn');
-        zipBtn.href = data.zip_url;
-        zipBtn.classList.remove('hidden');
+      const cleanBtn = document.getElementById('downloadCleanZipBtn');
+      const rawBtn = document.getElementById('downloadRawZipBtn');
+      const bundleBtn = document.getElementById('downloadBundleZipBtn');
+
+      if (data.clean_zip_url) {
+        cleanBtn.href = data.clean_zip_url;
+        cleanBtn.classList.remove('hidden');
+      } else {
+        cleanBtn.classList.add('hidden');
       }
 
-      document.getElementById('resultsSummary').textContent =
-        `Successfully processed ${data.products.length} product(s) with ${data.total_images} total images.`;
+      if (data.raw_zip_url) {
+        rawBtn.href = data.raw_zip_url;
+        rawBtn.classList.remove('hidden');
+      } else {
+        rawBtn.classList.add('hidden');
+      }
 
-      data.products.forEach(prod => {
+      if (data.bundle_zip_url) {
+        bundleBtn.href = data.bundle_zip_url;
+        bundleBtn.classList.remove('hidden');
+      } else {
+        bundleBtn.classList.add('hidden');
+      }
+
+      if (!data.clean_zip_url && !data.raw_zip_url && data.zip_url) {
+        cleanBtn.href = data.zip_url;
+        cleanBtn.textContent = "Download All as ZIP";
+        cleanBtn.classList.remove('hidden');
+      }
+
+      const modeText = data.mode === 'raw_only' ? ' (Raw Originals Only)' : '';
+      document.getElementById('resultsSummary').textContent =
+        `Successfully processed ${data.products.length} product(s) with ${data.total_images} total images${modeText}.`;
+
+      data.products.forEach((prod, pIdx) => {
         const card = document.createElement('div');
         card.className = "bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4";
         
-        let imagesHtml = prod.images.map(img => `
-          <div class="group relative rounded-lg border border-slate-200 overflow-hidden bg-white hover:shadow-md transition">
-            <div class="aspect-square flex items-center justify-center p-3">
-              <img src="${img.processed_url}" alt="Product" class="max-h-full max-w-full object-contain">
-            </div>
-            <div class="p-2 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <span class="text-[11px] font-medium text-slate-500">${img.filename}</span>
-              <a href="${img.processed_url}" download="${img.filename}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold inline-flex items-center gap-1">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                Save
-              </a>
-            </div>
-          </div>
-        `).join('');
+        let imagesHtml = prod.images.map((img, iIdx) => {
+          const imgUid = `prod_${pIdx}_img_${iIdx}`;
+          const hasClean = !!img.processed_url;
+          const hasRaw = !!img.raw_url;
+          const defaultSrc = img.processed_url || img.raw_url;
 
-        card.innerHTML = `
-          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div>
-              <h3 class="font-semibold text-slate-800 text-sm sm:text-base">${prod.slug}</h3>
-              <p class="text-xs text-slate-400">${prod.images.length} image(s) processed</p>
+          let togglePill = '';
+          if (hasClean && hasRaw) {
+            togglePill = `
+              <div class="absolute top-2 right-2 flex bg-white/90 backdrop-blur rounded-md shadow border border-slate-200 p-0.5 text-[10px] font-semibold z-10">
+                <button type="button" onclick="switchImagePreview('${imgUid}', '${img.processed_url}', this)" class="px-1.5 py-0.5 rounded bg-emerald-600 text-white transition preview-btn-clean">Clean</button>
+                <button type="button" onclick="switchImagePreview('${imgUid}', '${img.raw_url}', this)" class="px-1.5 py-0.5 rounded text-slate-600 hover:text-slate-900 transition preview-btn-raw">Raw</button>
+              </div>
+            `;
+          } else if (hasRaw && !hasClean) {
+            togglePill = `
+              <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[10px] font-semibold shadow z-10">Raw</span>
+            `;
+          }
+
+          let downloadButtons = '';
+          if (hasClean) {
+            downloadButtons += `
+              <a href="${img.processed_url}" download="${img.processed_filename || img.filename}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold inline-flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Clean
+              </a>
+            `;
+          }
+          if (hasRaw) {
+            downloadButtons += `
+              <a href="${img.raw_url}" download="${img.raw_filename}" class="text-xs text-amber-700 hover:text-amber-800 font-semibold inline-flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Raw
+              </a>
+            `;
+          }
+
+          return `
+            <div class="group relative rounded-lg border border-slate-200 overflow-hidden bg-white hover:shadow-md transition">
+              ${togglePill}
+              <div class="aspect-square flex items-center justify-center p-3 relative">
+                <img id="${imgUid}" src="${defaultSrc}" alt="Product" class="max-h-full max-w-full object-contain">
+              </div>
+              <div class="p-2 border-t border-slate-100 bg-slate-50/50 space-y-1">
+                <div class="text-[11px] font-medium font-mono text-slate-600 truncate" title="${img.filename}">
+                  ${img.filename}
+                </div>
+                <div class="flex items-center justify-between gap-1 pt-1 border-t border-slate-100/80">
+                  <span class="text-[10px] text-slate-400 font-normal">Save:</span>
+                  <div class="flex items-center gap-2">
+                    ${downloadButtons}
+                  </div>
+                </div>
+              </div>
             </div>
-            <a href="${prod.zip_url}" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition inline-flex items-center gap-1.5">
+          `;
+        }).join('');
+
+        const displayName = prod.custom_name || prod.slug;
+        const subSlug = (prod.custom_name && prod.custom_name !== prod.slug) ? `<span class="text-xs text-slate-400 font-normal ml-2">(${prod.slug})</span>` : '';
+
+        let zipButtons = '';
+        if (prod.clean_zip_url) {
+          zipButtons += `
+            <a href="${prod.clean_zip_url}" class="text-xs px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-medium rounded-lg transition inline-flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              ZIP Clean
+            </a>
+          `;
+        }
+        if (prod.raw_zip_url) {
+          zipButtons += `
+            <a href="${prod.raw_zip_url}" class="text-xs px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-medium rounded-lg transition inline-flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              ZIP Raw
+            </a>
+          `;
+        }
+        if (!prod.clean_zip_url && !prod.raw_zip_url && prod.zip_url) {
+          zipButtons += `
+            <a href="${prod.zip_url}" class="text-xs px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition inline-flex items-center gap-1">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
               ZIP Product
             </a>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
+            <div>
+              <div class="flex items-center">
+                <h3 class="font-semibold text-slate-800 text-sm sm:text-base">${displayName}</h3>
+                ${subSlug}
+              </div>
+              <p class="text-xs text-slate-400">${prod.images.length} image(s) processed</p>
+            </div>
+            <div class="flex items-center gap-2">
+              ${zipButtons}
+            </div>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             ${imagesHtml}
@@ -294,19 +478,37 @@
       const container = document.getElementById('productsContainer');
       container.innerHTML = '';
       document.getElementById('resultsSection').classList.remove('hidden');
-      document.getElementById('downloadAllZipBtn').classList.add('hidden');
+      document.getElementById('downloadCleanZipBtn').classList.add('hidden');
+      document.getElementById('downloadRawZipBtn').classList.add('hidden');
+      document.getElementById('downloadBundleZipBtn').classList.add('hidden');
       document.getElementById('resultsSummary').textContent = "Uploaded image processed successfully";
 
       const card = document.createElement('div');
-      card.className = "bg-white rounded-xl border border-slate-200 p-5 shadow-sm max-w-sm mx-auto text-center space-y-4";
+      card.className = "bg-white rounded-xl border border-slate-200 p-6 shadow-sm max-w-md mx-auto text-center space-y-4";
+      
+      const hasRaw = !!data.raw_url;
+      let rawBtnHtml = '';
+      if (hasRaw) {
+        rawBtnHtml = `
+          <a href="${data.raw_url}" download="${data.raw_filename}" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm rounded-xl transition shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download Raw Original
+          </a>
+        `;
+      }
+
       card.innerHTML = `
         <div class="aspect-square flex items-center justify-center p-4 bg-slate-50 rounded-xl border border-slate-100">
           <img src="${data.url}" class="max-h-full max-w-full object-contain">
         </div>
-        <a href="${data.url}" download="${data.filename}" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          Download Clean Image
-        </a>
+        <div class="text-xs font-mono font-medium text-slate-600 truncate" title="${data.filename}">${data.filename}</div>
+        <div class="space-y-2">
+          <a href="${data.url}" download="${data.filename}" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl transition shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download Clean Image
+          </a>
+          ${rawBtnHtml}
+        </div>
       `;
       container.appendChild(card);
     }

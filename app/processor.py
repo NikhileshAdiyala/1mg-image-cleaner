@@ -27,7 +27,17 @@ def fetch_1mg_image_urls(url: str) -> list[str]:
     with urllib.request.urlopen(req, timeout=20) as resp:
         html = resp.read().decode("utf-8")
 
-    # Match 1mg Gumlet image URLs
+    # Match 32-character hex product image filenames (standard for 1mg products)
+    hex_matches = re.findall(r'https://onemg\.gumlet\.io/[^\s\"\'<>]*/([a-f0-9]{32}\.(?:jpg|jpeg|png|webp))', html)
+    if hex_matches:
+        unique_urls = []
+        for img_file in hex_matches:
+            clean_url = f"https://onemg.gumlet.io/{img_file}"
+            if clean_url not in unique_urls:
+                unique_urls.append(clean_url)
+        return unique_urls
+
+    # Fallback for pages without standard hex hashes
     raw_matches = re.findall(r'https://onemg\.gumlet\.io/[^\s\"\'<>]+', html)
     clean_urls = []
 
@@ -37,8 +47,6 @@ def fetch_1mg_image_urls(url: str) -> list[str]:
             continue
 
         # Extract base image path by removing watermark and sizing transformations
-        # e.g., https://onemg.gumlet.io/l_watermark_346,w_480/a_ignore,w_480/.../hash.jpg
-        # becomes https://onemg.gumlet.io/hash.jpg
         clean = re.sub(r'l_watermark_[^/]*/', '', u)
         clean = re.sub(r'a_ignore,[^/]*/', '', clean)
         clean = clean.split("?")[0]
