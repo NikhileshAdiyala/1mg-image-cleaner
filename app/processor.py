@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import urllib.request
 from urllib.parse import urlparse
 from io import BytesIO
@@ -36,13 +37,65 @@ def extract_product_slug(url: str) -> str:
 def fetch_1mg_image_urls(url: str) -> list[str]:
     """
     Extracts raw image source URLs from 1mg product page without dynamic watermark parameters.
+    Prioritizes the authoritative product gallery from window.__INITIAL_STATE__ to prevent
+    duplicate thumbnails (such as Schema.org / OpenGraph SEO thumbnails) from being extracted.
     """
     req = urllib.request.Request(url, headers=HEADERS)
     with urllib.request.urlopen(req, timeout=20) as resp:
         html = resp.read().decode("utf-8")
 
-    # Match 32-character hex product image filenames (standard for 1mg products)
-    hex_matches = re.findall(r'https://onemg\.gumlet\.io/[^\s\"\'<>]*/([a-f0-9]{32}\.(?:jpg|jpeg|png|webp))', html)
+    # 1. Primary: Extract official product gallery from window.__INITIAL_STATE__
+    prefix = "window.__INITIAL_STATE__ = "
+    start = html.find(prefix)
+    if start != -1:
+        try:
+            data, _ = json.JSONDecoder().raw_decode(html[start + len(prefix):])
+            img_list = None
+            for key in ["otcPageReducer", "drugPageReducer"]:
+                reducer = data.get(key, {})
+                static_data = reducer.get("staticData", {})
+                if "pageTitleData" in static_data and "imagesUrl" in static_data["pageTitleData"]:
+                    img_list = static_data["pageTitleData"]["imagesUrl"]
+                    break
+                if "stillAndMovingImagesData" in static_data and static_data["stillAndMovingImagesData"]:
+                    img_list = static_data["stillAndMovingImagesData"]
+                    break
+                if "sku" in static_data and "images" in static_data["sku"]:
+                    img_list = static_data["sku"]["images"]
+                    break
+
+            if img_list:
+                clean_urls = []
+                seen_files = set()
+                for item in img_list:
+                    u = item.get("high") or item.get("mediumhigh") or item.get("medium") or item.get("low") or item.get("thumbnail")
+                    if not u or any(x in u for x in ["marketing", "diagnostics", "banner", ".svg"]):
+                        continue
+
+                    path = u.split("?")[0].strip("/")
+                    fname = path.split("/")[-1]
+                    ext = os.path.splitext(fname)[1].lower()
+                    if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
+                        continue
+
+                    clean_match = re.search(r'([a-f0-9]{32}\.(?:jpg|jpeg|png|webp))', fname)
+                    clean_fname = clean_match.group(1) if clean_match else fname
+
+                    if clean_fname in seen_files:
+                        continue
+                    seen_files.add(clean_fname)
+                    clean_urls.append(f"https://onemg.gumlet.io/{clean_fname}")
+
+                if clean_urls:
+                    return clean_urls
+        except Exception as e:
+            print(f"Failed to parse __INITIAL_STATE__ gallery: {e}")
+
+    # 2. Fallback: Strip Schema.org ld+json and meta tags before regex to prevent duplicate thumbnails
+    html_cleaned = re.sub(r'<script[^>]*type=[\'"]application/ld\+json[\'"][^>]*>.*?</script>', '', html, flags=re.DOTALL)
+    html_cleaned = re.sub(r'<meta[^>]*>', '', html_cleaned)
+
+    hex_matches = re.findall(r'https://onemg\.gumlet\.io/[^\s\"\'<>]*/([a-f0-9]{32}\.(?:jpg|jpeg|png|webp))', html_cleaned)
     if hex_matches:
         unique_urls = []
         for img_file in hex_matches:
@@ -52,20 +105,17 @@ def fetch_1mg_image_urls(url: str) -> list[str]:
         return unique_urls
 
     # Fallback for pages without standard hex hashes
-    raw_matches = re.findall(r'https://onemg\.gumlet\.io/[^\s\"\'<>]+', html)
+    raw_matches = re.findall(r'https://onemg\.gumlet\.io/[^\s\"\'<>]+', html_cleaned)
     clean_urls = []
 
     for u in raw_matches:
-        # Ignore ads, diagnostics, and banners
         if any(x in u for x in ["marketing", "diagnostics", "banner", ".svg"]):
             continue
 
-        # Extract base image path by removing watermark and sizing transformations
         clean = re.sub(r'l_watermark_[^/]*/', '', u)
         clean = re.sub(r'a_ignore,[^/]*/', '', clean)
         clean = clean.split("?")[0]
 
-        # Valid image extensions
         if clean.endswith((".jpg", ".jpeg", ".png", ".webp")):
             if clean not in clean_urls:
                 clean_urls.append(clean)

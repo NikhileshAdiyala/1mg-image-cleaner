@@ -4,15 +4,34 @@ import uuid
 import shutil
 import zipfile
 import base64
+import hashlib
 import urllib.request
+from io import BytesIO
 from urllib.parse import urlparse
 from typing import List, Optional
+from PIL import Image
+import numpy as np
 from pydantic import BaseModel
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.processor import fetch_1mg_image_urls, extract_product_slug, process_single_image, HEADERS
+
+def compute_image_phash(image_bytes: bytes) -> Optional[np.ndarray]:
+    try:
+        im = Image.open(BytesIO(image_bytes)).convert("RGBA")
+        a = np.array(im)[:, :, 3]
+        rgb = np.array(im.convert("RGB"))
+        mask = (a > 10) & (np.mean(rgb, axis=2) < 250)
+        ys, xs = np.where(mask)
+        if len(xs) > 0:
+            im = im.crop((xs.min(), ys.min(), xs.max(), ys.max()))
+        gray = im.convert("L").resize((16, 16), Image.Resampling.BILINEAR)
+        arr = np.array(gray)
+        return arr > arr.mean()
+    except Exception:
+        return None
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -136,19 +155,42 @@ async def process_urls(req: ProcessRequest):
             image_urls = []
 
         prod_images = []
-        for idx, img_url in enumerate(image_urls, 1):
+        seen_img_signatures = []
+
+        for img_url in image_urls:
             try:
                 img_req = urllib.request.Request(img_url, headers=HEADERS)
                 with urllib.request.urlopen(img_req, timeout=15) as resp:
                     raw_bytes = resp.read()
+
+                # Check for duplicate of an earlier image (exact bytes or cropped perceptual hash)
+                curr_md5 = hashlib.md5(raw_bytes).hexdigest()
+                curr_phash = compute_image_phash(raw_bytes)
+
+                is_dup = False
+                for prev_md5, prev_phash in seen_img_signatures:
+                    if curr_md5 == prev_md5:
+                        is_dup = True
+                        break
+                    if curr_phash is not None and prev_phash is not None:
+                        if np.count_nonzero(curr_phash != prev_phash) <= 4:
+                            is_dup = True
+                            break
+
+                if is_dup:
+                    print(f"Skipping duplicate image {img_url} for product {base_name}")
+                    continue
+
+                seen_img_signatures.append((curr_md5, curr_phash))
 
                 # Detect file extension of the raw image
                 url_path = urlparse(img_url).path
                 ext_candidate = os.path.splitext(url_path)[1].lstrip(".").lower()
                 raw_ext = "jpg" if ext_candidate in ["jpg", "jpeg"] else (ext_candidate if ext_candidate in ["png", "webp"] else "jpg")
 
+                idx = len(prod_images) + 1
                 if idx == 1:
-                    clean_basename = f"{base_name}.Main"
+                    clean_basename = f"{base_name}.MAIN"
                 else:
                     pt_num = idx - 1
                     clean_basename = f"{base_name}.PT{pt_num:02d}"
@@ -306,8 +348,8 @@ async def upload_image(
         raw_ext = file.filename.rsplit(".", 1)[-1].lower()
 
     if clean_custom:
-        unique_name = f"{clean_custom}.Main.{ext}"
-        unique_raw_name = f"{clean_custom}.Main.{raw_ext}"
+        unique_name = f"{clean_custom}.MAIN.{ext}"
+        unique_raw_name = f"{clean_custom}.MAIN.{raw_ext}"
     else:
         uid = uuid.uuid4().hex[:8]
         unique_name = f"upload_{uid}.{ext}"
