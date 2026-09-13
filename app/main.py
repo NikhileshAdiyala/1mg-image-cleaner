@@ -153,7 +153,7 @@ async def process_urls(req: ProcessRequest):
                     pt_num = idx - 1
                     clean_basename = f"{base_name}.PT{pt_num:02d}"
 
-                raw_filename = f"{clean_basename}.raw.{raw_ext}"
+                raw_filename = f"{clean_basename}.{raw_ext}"
                 raw_url = None
                 raw_data_url = None
 
@@ -196,16 +196,17 @@ async def process_urls(req: ProcessRequest):
         prod_clean_zip_name = f"{base_name}.zip"
         prod_clean_zip_path = os.path.join(prod_dir, prod_clean_zip_name)
         has_prod_clean = False
-        with zipfile.ZipFile(prod_clean_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for item in prod_images:
-                if item.get("processed_filename"):
-                    p_path = os.path.join(prod_dir, item["processed_filename"])
-                    if os.path.exists(p_path):
-                        zf.write(p_path, arcname=item["processed_filename"])
-                        has_prod_clean = True
+        if not is_raw_only:
+            with zipfile.ZipFile(prod_clean_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for item in prod_images:
+                    if item.get("processed_filename"):
+                        p_path = os.path.join(prod_dir, item["processed_filename"])
+                        if os.path.exists(p_path):
+                            zf.write(p_path, arcname=item["processed_filename"])
+                            has_prod_clean = True
 
         # Create zip for raw images of this product (if available)
-        prod_raw_zip_name = f"{base_name}_raw.zip"
+        prod_raw_zip_name = f"{base_name}.zip" if is_raw_only else f"{base_name}_raw.zip"
         prod_raw_zip_path = os.path.join(prod_dir, prod_raw_zip_name)
         has_prod_raw = False
         if include_raw:
@@ -231,18 +232,19 @@ async def process_urls(req: ProcessRequest):
     all_clean_zip_name = f"1mg_processed_{job_id}.zip"
     all_clean_zip_path = os.path.join(job_dir, all_clean_zip_name)
     has_all_clean = False
-    with zipfile.ZipFile(all_clean_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for p in products_out:
-            folder_name = p.get("folder_name", p["custom_name"])
-            for item in p["images"]:
-                if item.get("processed_filename"):
-                    clean_file = os.path.join(job_dir, folder_name, item["processed_filename"])
-                    if os.path.exists(clean_file):
-                        zf.write(clean_file, arcname=os.path.join(folder_name, item["processed_filename"]))
-                        has_all_clean = True
+    if not is_raw_only:
+        with zipfile.ZipFile(all_clean_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for p in products_out:
+                folder_name = p.get("folder_name", p["custom_name"])
+                for item in p["images"]:
+                    if item.get("processed_filename"):
+                        clean_file = os.path.join(job_dir, folder_name, item["processed_filename"])
+                        if os.path.exists(clean_file):
+                            zf.write(clean_file, arcname=os.path.join(folder_name, item["processed_filename"]))
+                            has_all_clean = True
 
     # Master zip for raw images
-    all_raw_zip_name = f"1mg_raw_{job_id}.zip"
+    all_raw_zip_name = f"1mg_{job_id}.zip" if is_raw_only else f"1mg_raw_{job_id}.zip"
     all_raw_zip_path = os.path.join(job_dir, all_raw_zip_name)
     has_all_raw = False
     if include_raw:
@@ -305,16 +307,18 @@ async def upload_image(
 
     if clean_custom:
         unique_name = f"{clean_custom}.Main.{ext}"
-        unique_raw_name = f"{clean_custom}.Main.raw.{raw_ext}"
+        unique_raw_name = f"{clean_custom}.Main.{raw_ext}"
     else:
         uid = uuid.uuid4().hex[:8]
         unique_name = f"upload_{uid}.{ext}"
-        unique_raw_name = f"upload_{uid}.raw.{raw_ext}"
+        unique_raw_name = f"upload_{uid}.{raw_ext}"
 
     upload_dir = os.path.join(OUTPUTS_DIR, "uploads")
+    raw_upload_dir = os.path.join(upload_dir, "raw")
     os.makedirs(upload_dir, exist_ok=True)
+    os.makedirs(raw_upload_dir, exist_ok=True)
     out_path = os.path.join(upload_dir, unique_name)
-    raw_path = os.path.join(upload_dir, unique_raw_name)
+    raw_path = os.path.join(raw_upload_dir, unique_raw_name)
 
     with open(out_path, "wb") as f:
         f.write(processed_bytes)
@@ -330,7 +334,7 @@ async def upload_image(
         "url": f"/static/outputs/uploads/{unique_name}",
         "data_url": f"data:image/{proc_mime};base64,{base64.b64encode(processed_bytes).decode('utf-8')}",
         "raw_filename": unique_raw_name,
-        "raw_url": f"/static/outputs/uploads/{unique_raw_name}",
+        "raw_url": f"/static/outputs/uploads/raw/{unique_raw_name}",
         "raw_data_url": f"data:image/{raw_mime};base64,{base64.b64encode(contents).decode('utf-8')}"
     }
 
