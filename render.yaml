@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: 1mg-image-cleaner
+    env: docker
+    plan: free
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 8000
