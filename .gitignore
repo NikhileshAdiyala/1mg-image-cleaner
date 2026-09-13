@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+static/outputs/*
+!static/outputs/.gitkeep
+.DS_Store
+*.log
